@@ -15,24 +15,31 @@ from rest_framework.permissions import IsAuthenticated
 @csrf_exempt
 def signup(request):
     if request.method == 'POST':
-        data = json.loads(request.body or '{}')
+        try:
+            data = json.loads(request.body or '{}')
 
-        username = data.get('username')
-        email = data.get('email')
-        password = data.get('password')
+            username = data.get('username')
+            email = data.get('email')
+            password = data.get('password')
 
-        if User.objects.filter(username=username).exists():
-            return JsonResponse({'error': 'Username already exists'})
+            if not username or not password:
+                return JsonResponse({'error': 'Username and password required'}, status=400)
 
-        User.objects.create_user(
-            username=username,
-            email=email,
-            password=password
-        )
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({'error': 'Username already exists'}, status=400)
 
-        return JsonResponse({'message': 'User created successfully'})
+            User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
 
-    return JsonResponse({'error': 'Only POST method allowed'})
+            return JsonResponse({'message': 'User created successfully ✅'})
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Only POST method allowed'}, status=405)
 
 
 # 🔧 GENERATE SHORT CODE
@@ -46,17 +53,17 @@ def generate_short_code(length=6):
 @permission_classes([IsAuthenticated])
 def shorten_url(request):
     original_url = request.data.get('url')
-    custom_code = request.data.get('custom_code')  # 🔥 NEW
+    custom_code = request.data.get('custom_code')
 
     if not original_url:
         return JsonResponse({'error': 'URL is required'}, status=400)
 
     user = request.user
 
-    # 🔥 If user gives custom alias
+    # 🔥 CUSTOM ALIAS LOGIC
     if custom_code:
         if URL.objects.filter(short_code=custom_code).exists():
-            return JsonResponse({'error': 'Custom code already taken'}, status=400)
+            return JsonResponse({'error': 'Custom code already taken ❌'}, status=400)
         short_code = custom_code
     else:
         short_code = generate_short_code()
@@ -70,21 +77,23 @@ def shorten_url(request):
     )
 
     return JsonResponse({
-        'short_url': f'http://127.0.0.1:8000/{short_code}'
+        'short_url': f'https://saas-url-shortner-backend.onrender.com/{short_code}'
     })
 
-# 🔁 REDIRECT
+
+# 🔁 REDIRECT SHORT URL → ORIGINAL
 def redirect_url(request, short_code):
     try:
         url = URL.objects.get(short_code=short_code)
         url.clicks += 1
         url.save()
         return redirect(url.original_url)
+
     except URL.DoesNotExist:
-        return HttpResponse("Link not found 😢")
+        return HttpResponse("Link not found 😢", status=404)
 
 
-# 📊 GET USER URLS
+# 📊 GET USER URLS + ANALYTICS
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_urls(request):

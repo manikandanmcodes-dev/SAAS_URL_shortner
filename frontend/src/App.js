@@ -1,43 +1,77 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 
+const BASE_URL = "https://saas-url-shortner-backend.onrender.com";
+
 function App() {
   const [url, setUrl] = useState("");
   const [shortUrl, setShortUrl] = useState("");
   const [urls, setUrls] = useState([]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isSignup, setIsSignup] = useState(false);
   const [customCode, setCustomCode] = useState("");
   const [totalClicks, setTotalClicks] = useState(0);
   const [totalLinks, setTotalLinks] = useState(0);
 
   // 🔐 LOGIN
   const handleLogin = async () => {
-    const response = await fetch("http://127.0.0.1:8000/token/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password }),
-    });
+    try {
+      const response = await fetch(`${BASE_URL}/token/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (data.access) {
-      localStorage.setItem("access", data.access);
-      localStorage.setItem("refresh", data.refresh);
-      setIsLoggedIn(true);
-      fetchUrls();
-    } else {
-      alert("Login failed ❌");
+      if (data.access) {
+        localStorage.setItem("access", data.access);
+        localStorage.setItem("refresh", data.refresh);
+        setIsLoggedIn(true);
+        fetchUrls();
+      } else {
+        alert("Login failed ❌");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Server error ❌");
+    }
+  };
+
+  // 🆕 SIGNUP
+  const handleSignup = async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/signup/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, email, password }),
+      });
+
+      const data = await response.json();
+
+      if (data.message) {
+        alert("Signup successful ✅ Now login");
+        setIsSignup(false);
+      } else {
+        alert(JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Signup error ❌");
     }
   };
 
   // 📊 FETCH URLS
   const fetchUrls = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/my-urls/", {
+      const response = await fetch(`${BASE_URL}/my-urls/`, {
         headers: {
           Authorization: "Bearer " + localStorage.getItem("access"),
         },
@@ -54,7 +88,6 @@ function App() {
       }
     } catch (error) {
       console.error("Fetch error:", error);
-      setUrls([]);
     }
   };
 
@@ -68,7 +101,7 @@ function App() {
     }
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/shorten/", {
+      const response = await fetch(`${BASE_URL}/shorten/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,10 +141,10 @@ function App() {
     <div className="container">
       <h1>🚀 URL Shortener SaaS</h1>
 
-      {/* 🔐 LOGIN */}
+      {/* 🔐 LOGIN / SIGNUP */}
       {!isLoggedIn && (
         <div className="card">
-          <h3>Login</h3>
+          <h3>{isSignup ? "Signup" : "Login"}</h3>
 
           <input
             className="input"
@@ -119,6 +152,15 @@ function App() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
+
+          {isSignup && (
+            <input
+              className="input"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          )}
 
           <input
             className="input"
@@ -128,9 +170,21 @@ function App() {
             onChange={(e) => setPassword(e.target.value)}
           />
 
-          <button className="button" onClick={handleLogin}>
-            Login
+          <button
+            className="button"
+            onClick={isSignup ? handleSignup : handleLogin}
+          >
+            {isSignup ? "Signup" : "Login"}
           </button>
+
+          <p
+            style={{ marginTop: "10px", cursor: "pointer" }}
+            onClick={() => setIsSignup(!isSignup)}
+          >
+            {isSignup
+              ? "Already have an account? Login"
+              : "Don't have an account? Signup"}
+          </p>
         </div>
       )}
 
@@ -182,7 +236,7 @@ function App() {
             <div key={index} className="card link-card">
               <div>
                 <p>{item.original_url}</p>
-                <p>http://127.0.0.1:8000/{item.short_code}</p>
+                <p>{BASE_URL}/{item.short_code}</p>
                 <p>Clicks: {item.clicks}</p>
               </div>
 
@@ -190,7 +244,7 @@ function App() {
                 className="copy-btn"
                 onClick={() =>
                   navigator.clipboard.writeText(
-                    `http://127.0.0.1:8000/${item.short_code}`
+                    `${BASE_URL}/${item.short_code}`
                   )
                 }
               >
