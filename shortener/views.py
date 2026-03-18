@@ -71,6 +71,10 @@ def shorten_url(request):
     if not original_url:
         return JsonResponse({'error': 'URL is required'}, status=400)
 
+    # 🔥 FIX: ADD THIS BLOCK
+    if not original_url.startswith('http://') and not original_url.startswith('https://'):
+        original_url = 'https://' + original_url
+
     user = request.user
 
     # 🔥 CUSTOM ALIAS LOGIC
@@ -92,7 +96,6 @@ def shorten_url(request):
     return JsonResponse({
         'short_url': f'https://saas-url-shortner-backend.onrender.com/{short_code}'
     })
-
 
 # 🔁 REDIRECT SHORT URL → ORIGINAL
 def redirect_url(request, short_code):
