@@ -77,6 +77,14 @@ function App() {
         },
       });
 
+      // 🔥 HANDLE EXPIRED TOKEN
+      if (response.status === 401) {
+        localStorage.clear();
+        setIsLoggedIn(false);
+        alert("Session expired. Please login again 🔐");
+        return;
+      }
+
       const data = await response.json();
 
       if (data.urls) {
@@ -97,6 +105,7 @@ function App() {
 
     if (!token) {
       alert("Please login first ❌");
+      setIsLoggedIn(false);
       return;
     }
 
@@ -112,6 +121,14 @@ function App() {
           custom_code: customCode,
         }),
       });
+
+      // 🔥 HANDLE EXPIRED TOKEN
+      if (response.status === 401) {
+        localStorage.clear();
+        setIsLoggedIn(false);
+        alert("Session expired. Please login again 🔐");
+        return;
+      }
 
       const data = await response.json();
 
@@ -131,9 +148,9 @@ function App() {
   // 🔄 AUTO LOGIN
   useEffect(() => {
     const token = localStorage.getItem("access");
+
     if (token) {
-      setIsLoggedIn(true);
-      fetchUrls();
+      fetchUrls(); // 🔥 don't force login blindly
     }
   }, []);
 
