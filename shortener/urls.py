@@ -5,7 +5,6 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     path('shorten/', shorten_url),
-    path('create-admin/', create_admin),
     path('signup/', signup),
     path('my-urls/', my_urls),
 
