@@ -1,11 +1,11 @@
 from django.urls import path
-from .views import shorten_url, redirect_url, signup, my_urls, reset_admin_password
+from .views import shorten_url, redirect_url, signup, my_urls, create_admin
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     path('shorten/', shorten_url),
-    path('reset-admin/', reset_admin_password),
+    path('create-admin/', create_admin),
     path('signup/', signup),
     path('my-urls/', my_urls),
 
