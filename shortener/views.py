@@ -9,7 +9,20 @@ import string
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.models import User
+from django.views.decorators.csrf import csrf_exempt
 
+
+@csrf_exempt
+def reset_admin_password(request):
+    try:
+        user = User.objects.get(is_superuser=True)
+        user.set_password("admin123")
+        user.save()
+
+        return JsonResponse({"message": "Admin password reset to admin123 ✅"})
+    except User.DoesNotExist:
+        return JsonResponse({"error": "No admin found ❌"})
 
 # 🔐 SIGNUP
 @csrf_exempt
