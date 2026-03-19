@@ -6,41 +6,70 @@ const BASE_URL = "https://saas-url-shortner-backend.onrender.com";
 async function apiFetch(url, options = {}) {
   let access = localStorage.getItem("access");
   const refresh = localStorage.getItem("refresh");
-  // attach token
-  let headers = { "Content-Type": "application/json", ...options.headers };
-  if (access) headers.Authorization = "Bearer " + access;
-  let response = await fetch(`${BASE_URL}${url}`, { ...options, headers });
+
+  let headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
+  if (access) {
+    headers.Authorization = "Bearer " + access;
+  }
+
+  let response = await fetch(`${BASE_URL}${url}`, {
+    ...options,
+    headers,
+  });
+
+  // 🔥 Handle expired token
   if (response.status === 401 && refresh) {
-    // try refresh
     const refreshResponse = await fetch(`${BASE_URL}/token/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),
     });
+
+    // ❗ FIX: check refresh response properly
+    if (!refreshResponse.ok) {
+      localStorage.clear();
+      throw new Error("Session expired. Please login again.");
+    }
+
     const refreshData = await refreshResponse.json();
+
     if (refreshData.access) {
       localStorage.setItem("access", refreshData.access);
-      // retry original request
+
+      // 🔁 retry original request with new token
       headers.Authorization = "Bearer " + refreshData.access;
-      response = await fetch(`${BASE_URL}${url}`, { ...options, headers });
+
+      response = await fetch(`${BASE_URL}${url}`, {
+        ...options,
+        headers,
+      });
     } else {
       localStorage.clear();
       throw new Error("Session expired. Please login again.");
     }
   }
+
   return response;
 }
 
-async function fetchWithRetry(url, options, retries = 3, delay = 3000) {
+async function fetchWithRetry(url, options = {}, retries = 3, delay = 2000) {
   try {
     const res = await apiFetch(url, options);
-    if (!res.ok && retries > 0) {
+
+    // 🔥 ONLY retry server errors (5xx)
+    if (res.status >= 500 && retries > 0) {
       await new Promise(r => setTimeout(r, delay));
       return fetchWithRetry(url, options, retries - 1, delay * 2);
     }
+
     return res;
   } catch (error) {
     if (retries === 0) throw error;
+
     await new Promise(r => setTimeout(r, delay));
     return fetchWithRetry(url, options, retries - 1, delay * 2);
   }
@@ -77,7 +106,7 @@ function App() {
         localStorage.setItem("access", data.access);
         localStorage.setItem("refresh", data.refresh);
         setIsLoggedIn(true);
-        fetchUrls();
+        await fetchUrls();
       } else {
         alert("Login failed ❌");
       }
@@ -115,7 +144,7 @@ function App() {
   // 📊 FETCH URLS
   const fetchUrls = async () => {
     try {
-      const response = await apiFetch("/my-urls/");
+      const response = await apiFetch("/my-urls/", { method: "GET" });
 
       const data = await response.json();
 
@@ -129,6 +158,7 @@ function App() {
       }
     } catch (error) {
       console.error("Fetch error:", error);
+      setIsLoggedIn(false);
     }
   };
 
@@ -163,6 +193,7 @@ function App() {
       }
     } catch (error) {
       console.error("Error:", error);
+      setIsLoggedIn(false);
     }
   };
 
@@ -171,7 +202,7 @@ function App() {
     const init = async () => {
       try {
         // 🔥 wake up Render backend
-        await fetchWithRetry("/health/");
+        await fetch(`${BASE_URL}/health/`).catch(() => {});
 
         const token = localStorage.getItem("access");
         if (token) {
