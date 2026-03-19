@@ -128,13 +128,13 @@ function App() {
 
       const data = await response.json();
 
-      if (data.access) {
+      if (response.ok) {
         localStorage.setItem("access", data.access);
         localStorage.setItem("refresh", data.refresh);
         setIsLoggedIn(true);
         await fetchUrls();
       } else {
-        alert("Login failed ❌");
+        alert(data.detail || JSON.stringify(data));
       }
     } catch (error) {
       console.error(error);
@@ -157,11 +157,11 @@ function App() {
 
       const data = await response.json();
 
-      if (data.message) {
+      if (response.ok) {
         alert("Signup successful ✅ Now login");
         setIsSignup(false);
       } else {
-        alert(JSON.stringify(data));
+        alert(data.error || JSON.stringify(data));
       }
     } catch (error) {
       console.error(error);
