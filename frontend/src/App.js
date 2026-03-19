@@ -230,7 +230,7 @@ function App() {
     const init = async () => {
       try {
         // 🔥 wake up Render backend
-        await fetch(`${BASE_URL}/health/`, { method: "GET" });
+        await fetchWithRetry("/health/", { method: "GET" });
 
         const token = localStorage.getItem("access");
         if (token) {
