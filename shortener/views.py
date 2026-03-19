@@ -10,6 +10,9 @@ import string
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
+def health(request):
+    return JsonResponse({"status": "ok"})
+
 # 🔐 SIGNUP
 @csrf_exempt
 def signup(request):
