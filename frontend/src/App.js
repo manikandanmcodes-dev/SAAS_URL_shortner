@@ -88,9 +88,11 @@ function App() {
   const [customCode, setCustomCode] = useState("");
   const [totalClicks, setTotalClicks] = useState(0);
   const [totalLinks, setTotalLinks] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   // 🔐 LOGIN
   const handleLogin = async () => {
+    setLoading(true);
     try {
       const response = await fetch(`${BASE_URL}/token/`, {
         method: "POST",
@@ -113,6 +115,8 @@ function App() {
     } catch (error) {
       console.error(error);
       alert("Server error ❌");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -252,8 +256,9 @@ function App() {
           <button
             className="button"
             onClick={isSignup ? handleSignup : handleLogin}
+            disabled={loading}
           >
-            {isSignup ? "Signup" : "Login"}
+            {loading ? "Loading..." : isSignup ? "Signup" : "Login"}
           </button>
 
           <p
