@@ -16,44 +16,68 @@ async function apiFetch(url, options = {}) {
     headers.Authorization = "Bearer " + access;
   }
 
-  let response = await fetch(`${BASE_URL}${url}`, {
-    ...options,
-    headers,
-  });
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
-  // 🔥 Handle expired token
-  if (response.status === 401 && refresh) {
-    const refreshResponse = await fetch(`${BASE_URL}/token/refresh/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh }),
+    let response = await fetch(`${BASE_URL}${url}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
     });
 
-    // ❗ FIX: check refresh response properly
-    if (!refreshResponse.ok) {
-      localStorage.clear();
-      throw new Error("Session expired. Please login again.");
-    }
+    clearTimeout(timeout);
 
-    const refreshData = await refreshResponse.json();
+    // 🔥 Refresh logic
+    if (response.status === 401 && refresh) {
+      const refreshController = new AbortController();
+      const refreshTimeout = setTimeout(() => refreshController.abort(), 15000);
 
-    if (refreshData.access) {
-      localStorage.setItem("access", refreshData.access);
-
-      // 🔁 retry original request with new token
-      headers.Authorization = "Bearer " + refreshData.access;
-
-      response = await fetch(`${BASE_URL}${url}`, {
-        ...options,
-        headers,
+      const refreshResponse = await fetch(`${BASE_URL}/token/refresh/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+        signal: refreshController.signal,
       });
-    } else {
-      localStorage.clear();
-      throw new Error("Session expired. Please login again.");
-    }
-  }
 
-  return response;
+      clearTimeout(refreshTimeout);
+
+      if (!refreshResponse.ok) {
+        localStorage.clear();
+        throw new Error("Session expired. Please login again.");
+      }
+
+      const refreshData = await refreshResponse.json();
+
+      if (refreshData.access) {
+        localStorage.setItem("access", refreshData.access);
+
+        headers.Authorization = "Bearer " + refreshData.access;
+
+        const retryController = new AbortController();
+        const retryTimeout = setTimeout(() => retryController.abort(), 15000);
+
+        response = await fetch(`${BASE_URL}${url}`, {
+          ...options,
+          headers,
+          signal: retryController.signal,
+        });
+
+        clearTimeout(retryTimeout);
+      } else {
+        localStorage.clear();
+        throw new Error("Session expired. Please login again.");
+      }
+    }
+
+    return response;
+
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Request timeout. Server is slow or waking up.");
+    }
+    throw err;
+  }
 }
 
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 2000) {
@@ -206,7 +230,7 @@ function App() {
     const init = async () => {
       try {
         // 🔥 wake up Render backend
-        await fetch(`${BASE_URL}/health/`).catch(() => {});
+        await fetch(`${BASE_URL}/health/`, { method: "GET" });
 
         const token = localStorage.getItem("access");
         if (token) {
